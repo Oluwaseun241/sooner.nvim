@@ -7,8 +7,8 @@ local M = {}
 local coding_start_time = nil
 local total_coding_time = 0
 local activity_timeouts = {}
+local api_key = nil
 
-local api_key = vim.fn.getenv("SONNER_API_KEY")
 local debounce_time = 120 * 1000
 
 local function start_tracking()
@@ -55,7 +55,8 @@ end
 
 M.setup = function()
 	status_bar.initialize()
-
+	api_key = vim.fn.getenv("SONNER_API_KEY")
+	--api_key = "EI0L7Nu9QYK1lx85eFrLMYoEQWo7FbTGkDDEVJk8enuwRbZsi4pDWXwlgKutO2SGZ2i4Y"
 	if api_key then
 		api.fetch_coding_time_today(api_key, function(coding_time_today)
 			if coding_time_today then
@@ -65,16 +66,12 @@ M.setup = function()
 		end)
 	end
 
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChanged" }, {
+	vim.api.nvim_create_autocmd("TextChanged", {
 		pattern = "*",
 		callback = on_text_changed,
 	})
 
 	commands.setup()
-end
-
-M.show_message = function()
-	vim.api.nvim_out_write("Hello from sooner!\n")
 end
 
 return M

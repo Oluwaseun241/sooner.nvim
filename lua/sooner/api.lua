@@ -1,6 +1,6 @@
 local M = {}
 
-local function http_request(url, method, body, callback, headers)
+local function http_request(url, method, body, headers, callback)
 	local cmd = {
 		"curl",
 		"-s",
@@ -17,16 +17,23 @@ local function http_request(url, method, body, callback, headers)
 		end
 	end
 
-	table.insert(cmd, "-d")
-	table.insert(cmd, vim.fn.json_encode(body))
+	if body then
+		table.insert(cmd, "-d")
+		table.insert(cmd, vim.fn.json_encode(body))
+	end
+
 	table.insert(cmd, url)
 
 	vim.fn.jobstart(cmd, {
 		stdout_buffered = true,
 		on_stdout = function(_, data)
-			local response = table.concat(data, "\n")
-			local decoded = vim.fn.json_decode(response)
-			callback(decoded)
+			if data then
+				local response = table.concat(data, "\n")
+				local decoded = vim.fn.json_decode(response)
+				callback(decoded)
+			else
+				callback(nil)
+			end
 		end,
 		on_stderr = function(_, data)
 			print("Error:", table.concat(data, "\n"))
@@ -66,12 +73,15 @@ M.send_pulse_data = function(api_key, coding_start_time, file_path, language)
 		editor = "Neovim",
 	}
 
-	http_request("https://api.sooner.run/pulse", "POST", {
-		api_key = api_key,
-		payload = payload,
-	}, function(response)
-		print(response)
-	end)
+	http_request(
+		"https://api.sooner.run/v1/pulses",
+		"POST",
+		payload,
+		{ ["Authorization"] = "Bearer " .. api_key },
+		function(response)
+			print(vim.inspect(response))
+		end
+	)
 end
 
 M.fetch_coding_time_today = function(api_key, callback)
@@ -79,17 +89,33 @@ M.fetch_coding_time_today = function(api_key, callback)
 		Authorization = string.format("Bearer %s", api_key),
 	}
 
-	http_request("https://api.sooner.run/codetime-today", "GET", {}, callback, headers)
+	http_request("https://api.sooner.run/v1/codetime-today", "GET", nil, headers, function(response)
+		if response then
+			callback(response)
+		else
+			print("Failed to fetch coding time today")
+		end
+	end)
 end
 
 M.validate_api_key = function(key, callback)
-	http_request("https://api.sooner.run/activate-extension", "POST", {
+	http_request("https://api.sooner.run/v1/activate-extension", "POST", {
 		key = key,
-	}, function(response)
-		callback({
-			isValid = response and response.status == 200,
-			codetime_today = response and response.codetime_today or 0,
-		})
+	}, {}, function(response)
+		print(vim.inspect(response))
+		if response and response.status == 200 then
+			callback({
+				isValid = true,
+				codetime_today = response and response.codetime_today or 0,
+			})
+		else
+			callback({
+				isValid = false,
+				codetime_today = 0,
+			})
+			print("Invalid response")
+			print(vim.inspect(response))
+		end
 	end)
 end
 
