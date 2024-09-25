@@ -4,7 +4,7 @@ local commands = require("sooner.commands")
 
 local M = {}
 --variable
-local coding_start_time = nil
+local coding_start_time = 0
 local total_coding_time = 0
 local activity_timeouts = {}
 local api_key = nil
@@ -12,20 +12,21 @@ local api_key = nil
 local debounce_time = 120 * 1000
 
 local function start_tracking()
-	if not api_key then
-		return
-	end
 	if not coding_start_time then
 		coding_start_time = vim.fn.reltimefloat(vim.fn.reltime()) * 1000
+		print("Tracking started at:", coding_start_time)
 	end
 end
 
 local function stop_tracking()
-	if coding_start_time then
+	if coding_start_time and type(coding_start_time) == "number" then
 		local coding_end_time = vim.fn.reltimefloat(vim.fn.reltime()) * 1000
+		print("Start:", coding_start_time, "End:", coding_end_time)
 		local coding_duration = coding_end_time - coding_start_time
-		total_coding_time = total_coding_time + coding_duration
-		coding_start_time = nil
+		total_coding_time = (total_coding_time or 0) + coding_duration
+		coding_start_time = 0
+	else
+		print("Error: coding_start_time is not set correctly")
 	end
 end
 
@@ -34,11 +35,11 @@ local function on_text_changed()
 	local file_path = vim.api.nvim_buf_get_name(bufnr)
 	local language = vim.bo[bufnr].filetype
 
-	start_tracking()
-
 	if not api_key then
 		return
 	end
+
+	start_tracking()
 
 	if activity_timeouts[bufnr] then
 		vim.fn.timer_stop(activity_timeouts[bufnr])
@@ -55,13 +56,16 @@ end
 
 M.setup = function()
 	status_bar.initialize()
+	--api_key = commands.load_api_key_from_file()
 	api_key = vim.fn.getenv("SONNER_API_KEY")
-	--api_key = "EI0L7Nu9QYK1lx85eFrLMYoEQWo7FbTGkDDEVJk8enuwRbZsi4pDWXwlgKutO2SGZ2i4Y"
 	if api_key then
 		api.fetch_coding_time_today(api_key, function(coding_time_today)
 			if coding_time_today then
 				total_coding_time = coding_time_today.time
-				status_bar.update_text(total_coding_time)
+				-- I know i'm dumb but hear me out
+				-- api response has time (in milisec) and time_human_readable in ("0h 0m 0s")
+				local time = coding_time_today.time_human_readable
+				status_bar.update_text(time)
 			end
 		end)
 	end

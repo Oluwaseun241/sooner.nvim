@@ -19,9 +19,9 @@ M.update_text = function(total_coding_time)
 		return
 	end
 
-	local hours = math.floor(total_coding_time / 3600)
-	local minutes = math.floor((total_coding_time % 3600) / 60)
-	local text = string.format("Coding Time Today: %02d:%02d", hours, minutes)
+	--local hours = math.floor(total_coding_time / 3600)
+	--local minutes = math.floor((total_coding_time % 3600) / 60)
+	local text = string.format("Coding Time Today: %s", total_coding_time)
 	vim.api.nvim_buf_set_lines(statusline_id, 0, -1, false, { text })
 end
 

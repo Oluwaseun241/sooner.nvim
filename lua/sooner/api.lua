@@ -1,56 +1,38 @@
+local curl = require("plenary.curl")
+
 local M = {}
 
 local function http_request(url, method, body, headers, callback)
-	local cmd = {
-		"curl",
-		"-s",
-		"-X",
-		method,
-		"-H",
-		"Content-Type: application/json",
-	}
-
-	if headers then
-		for k, v in pairs(headers) do
-			table.insert(cmd, "-H")
-			table.insert(cmd, string.format("%s: %s", k, v))
-		end
-	end
-
-	if body then
-		table.insert(cmd, "-d")
-		table.insert(cmd, vim.fn.json_encode(body))
-	end
-
-	table.insert(cmd, url)
-
-	vim.fn.jobstart(cmd, {
-		stdout_buffered = true,
-		on_stdout = function(_, data)
-			if data then
-				local response = table.concat(data, "\n")
-				local decoded = vim.fn.json_decode(response)
-				callback(decoded)
-			else
-				callback(nil)
-			end
-		end,
-		on_stderr = function(_, data)
-			print("Error:", table.concat(data, "\n"))
-		end,
-		on_exit = function(_, code)
-			if code ~= 0 then
-				print("Request failed with exit code", code)
-			end
-		end,
+	local response = curl[method:lower()]({
+		url = url,
+		headers = headers,
+		timeout = 20000,
+		body = vim.fn.json_encode(body),
 	})
+
+	if response.status == 200 then
+		local decoded = vim.fn.json_decode(response.body)
+		callback(decoded)
+	else
+		print("Request failed with status code", response.status)
+		print("Error:", response.body)
+		callback(nil)
+	end
 end
 
 local function get_os_type()
-	local handle = io.popen("uname -s")
-	local result = handle:read("*a")
-	handle:close()
-	return result:gsub("\n", "")
+	local os_type
+
+	-- Check for Windows specifically
+	if package.config:sub(1, 1) == "\\" then
+		os_type = "Windows"
+	else
+		local handle = io.popen("uname -s")
+		local result = handle:read("*a"):gsub("\n", "")
+		handle:close()
+	end
+
+	return os_type
 end
 
 M.send_pulse_data = function(api_key, coding_start_time, file_path, language)
@@ -73,6 +55,11 @@ M.send_pulse_data = function(api_key, coding_start_time, file_path, language)
 		editor = "Neovim",
 	}
 
+	-- Ensure api_key is a string
+	if type(api_key) == "userdata" then
+		api_key = tostring(api_key)
+	end
+
 	http_request(
 		"https://api.sooner.run/v1/pulses",
 		"POST",
@@ -91,6 +78,7 @@ M.fetch_coding_time_today = function(api_key, callback)
 
 	http_request("https://api.sooner.run/v1/codetime-today", "GET", nil, headers, function(response)
 		if response then
+			print(response)
 			callback(response)
 		else
 			print("Failed to fetch coding time today")
@@ -113,7 +101,6 @@ M.validate_api_key = function(key, callback)
 				isValid = false,
 				codetime_today = 0,
 			})
-			print("Invalid response")
 			print(vim.inspect(response))
 		end
 	end)
