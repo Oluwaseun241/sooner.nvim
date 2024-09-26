@@ -6,7 +6,7 @@ local function http_request(url, method, body, headers, callback)
 	local response = curl[method:lower()]({
 		url = url,
 		headers = headers,
-		timeout = 20000,
+		--timeout = 20000,
 		body = vim.fn.json_encode(body),
 	})
 

@@ -1,6 +1,7 @@
 local api = require("sooner.api")
 local status_bar = require("sooner.status_bar")
 local commands = require("sooner.commands")
+local utils = require("sooner.utils")
 
 local M = {}
 --variable
@@ -56,8 +57,10 @@ end
 
 M.setup = function()
 	status_bar.initialize()
-	--api_key = commands.load_api_key_from_file()
-	api_key = vim.fn.getenv("SONNER_API_KEY")
+	-- fuckkkkkkkk
+	-- apparentely this is not loading any fucking thing from the file
+	api_key = utils.load_api_key_from_file()
+	--api_key = vim.fn.getenv("SONNER_API_KEY")
 	if api_key then
 		api.fetch_coding_time_today(api_key, function(coding_time_today)
 			if coding_time_today then
