@@ -6,7 +6,7 @@ local function http_request(url, method, body, headers, callback)
 	local response = curl[method:lower()]({
 		url = url,
 		headers = headers,
-		--timeout = 20000,
+		timeout = 20000,
 		body = vim.fn.json_encode(body),
 	})
 
@@ -28,8 +28,13 @@ local function get_os_type()
 		os_type = "Windows"
 	else
 		local handle = io.popen("uname -s")
-		local result = handle:read("*a"):gsub("\n", "")
-		handle:close()
+		if handle then
+			local result = handle:read("*a"):gsub("\n", "")
+			handle:close()
+			os_type = result
+		else
+			return nil
+		end
 	end
 
 	return os_type
@@ -42,6 +47,7 @@ M.send_pulse_data = function(api_key, coding_start_time, file_path, language)
 
 	local coding_end_time = vim.fn.reltimefloat(vim.fn.reltime()) * 1000
 	local pulse_time = coding_end_time - coding_start_time
+	print(pulse_time)
 
 	local payload = {
 		path = file_path,
@@ -66,7 +72,11 @@ M.send_pulse_data = function(api_key, coding_start_time, file_path, language)
 		payload,
 		{ ["Authorization"] = "Bearer " .. api_key },
 		function(response)
-			print(vim.inspect(response))
+			if response then
+				print("Response: ", vim.inspect(response))
+			else
+				print("No response or request failed.")
+			end
 		end
 	)
 end
